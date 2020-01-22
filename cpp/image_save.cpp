@@ -23,7 +23,7 @@ int main(void)
 	VideoCapture video(0);
 	Mat src;
 	int num = 0;
-	string path = "./images/";
+	string Path = "./images/";
 	string path_temp;
 
 	while (1)
@@ -34,7 +34,7 @@ int main(void)
 		if (waitKey(1) == ' ')
 		{
 			num++;
-			path_temp = path + to_string(num) + ".jpg";
+			path_temp = Path + to_string(num) + ".jpg";
 			imwrite(path_temp, src);
 
 			cout << path_temp << endl;

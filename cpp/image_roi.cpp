@@ -4,7 +4,7 @@
 using namespace cv;
 using namespace std;
 
-string RightPath = "./images-raccoon/";
+string Path = "./images-raccoon/";
 
 int CountLines(string& filename)
 {
@@ -34,21 +34,21 @@ int main(void)
 	Mat src, temp;
 	string ImagesName;//文件名
 
-	int RightNum = (CountLines(RightPath + "img.txt") - 1);
+	int Num = (CountLines(Path + "img.txt") - 1);
 
-	cout << "RightNum = " << RightNum << '\t' << endl;
+	cout << "Num = " << Num << '\t' << endl;
 
 	Range RIOy(44, 381);
 	Range RIOx(92, 499);
 
-	ifstream finPos(RightPath + "img.txt");
-	for (int num = 0; num < RightNum && getline(finPos, ImagesName); num++)
+	ifstream finPos(Path + "img.txt");
+	for (int num = 0; num < Num && getline(finPos, ImagesName); num++)
 	{
-		ImagesName = RightPath + ImagesName;
+		ImagesName = Path + ImagesName;
 		cout << ImagesName << endl;
 		src = imread(ImagesName);
 		temp = src(RIOy, RIOx);//设置RIO
-		ImagesName = RightPath + "000-" + to_string(num) + ".jpg";
+		ImagesName = Path + "000-" + to_string(num) + ".jpg";
 		imwrite(ImagesName, temp);
 	}
 	finPos.close();

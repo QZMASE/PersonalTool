@@ -20,14 +20,15 @@ class M3U8:
             AppleWebKit/537.36 (KHTML, like Gecko) \
             Chrome/78.0.3904.97 Safari/537.36'
     }
-    url = ""# 链接地址
+    m3u8 = ""# m3u8文件
     base_url = ""# 链接头
     filename = ""# 文件名
     ts_queue = Queue(10000)
     
-    def __init__(self, url, base_url = ""):
-        self.url = url
+    def __init__(self, file, base_url = ""):
+        self.m3u8 = file
         self.base_url = base_url
+        self.filename = self.m3u8.replace(".m3u8", ".ts")
         
         if os.path.exists(self.temp_dir):# 判断文件夹是否存在
             if os.listdir(self.temp_dir):# 缓存路径存在文件
@@ -39,21 +40,13 @@ class M3U8:
             os.mkdir(self.temp_dir)
         
     def analysis(self):
-        # 请求链接并转化为文本
-        if 'http' in self.url:# 判断是本地路径还是网络路径
-            self.filename = re.search('([a-zA-Z0-9-_]+.m3u8)', self.url).group(1).strip()# 从line中提取文件名
-            resp = requests.get(self.url, headers=self.headers)
-            m3u8_text = resp.text
-        else:
-            self.filename = self.url
-            file = open(self.url)
-            m3u8_text = file.read()
-            file.close()
+        file = open(self.m3u8)
+        m3u8_text = file.read()
+        file.close()
         lines = m3u8_text.split('\n')# 按行拆分m3u8文档
-        self.filename = self.filename.replace(".m3u8", ".ts")
-    
-        file = open(self.temp_file, mode='a+')
-        for i,line in enumerate(lines):
+        
+        file = open(self.temp_file, mode="w")# 打开文件只用于写入，若文件不存在则创建
+        for line in lines:
             if '.ts' in line:# 找到文档中含有ts字段的行
                 if 'http' in line:# 检查ts文件链接是否完整，若不完整需拼凑
                     self.ts_queue.put(line)
@@ -61,27 +54,27 @@ class M3U8:
                     line = self.base_url + line
                     self.ts_queue.put(line)
                 name = re.search('([a-zA-Z0-9-_]+.ts)', line).group(1).strip()# 从line中提取文件名
-                file.write("%s\n" % name)# 保存文件顺序
+                file.write("%s\n" % name)# 保存文件顺序，用于后面合并前的重命名
         file.close()
         
-    def run(self, ts_queue, headers):
-        while not ts_queue.empty():
-            url = ts_queue.get()
-            filename = re.search('([a-zA-Z0-9-_]+.ts)', url).group(1).strip()
+    def run(self):
+        while not self.ts_queue.empty():
+            url = self.ts_queue.get()
+            name = re.search('([a-zA-Z0-9-_]+.ts)', url).group(1).strip()
             try:
                 requests.packages.urllib3.disable_warnings()
                 r = requests.get(url, stream=True, headers=self.headers, verify=False, timeout=(10, 20))
-                with open(self.temp_dir + "temp_" + filename, 'wb') as fp:
+                # 以二进制格式打开只用于写入。若文件存在则覆盖。若文件不存在，创建新文件
+                with open(self.temp_dir + name, 'wb') as fp:
                     for chunk in r.iter_content(5242):
                         if chunk:
                             fp.write(chunk)
-                shutil.move(self.temp_dir + "temp_" + filename, self.temp_dir + filename)
                 self.num_ts += 1
-                print("\r", filename, '下载成功，进度', self.num_ts , "/", self.sum_ts, end="", flush=True)# 刷新显示进度
+                print("\r", name, '下载成功，进度', self.num_ts , "/", self.sum_ts, end="", flush=True)# 刷新显示进度
             except:
-                print('任务文件', filename, '下载失败')
-                ts_queue.put(url)
-        
+                print('任务文件', name, '下载失败')
+                self.ts_queue.put(url)
+
     def download(self):
         self.sum_ts = self.ts_queue.qsize()
         if self.sum_ts > 5:
@@ -92,7 +85,7 @@ class M3U8:
             sum_threads = 50
         threads = []
         for i in range(sum_threads):
-            t = threading.Thread(target=self.run, name='th-' + str(i), kwargs={'ts_queue': self.ts_queue, 'headers': self.headers})
+            t = threading.Thread(target=self.run, name='th-' + str(i))
             t.setDaemon(True)
             threads.append(t)
         for t in threads:
@@ -104,35 +97,35 @@ class M3U8:
             
     def merge(self):
         file = open(self.temp_file)
-        lines = file.readlines()
+        lines = file.readlines()# 读取缓存的文件名
         file.close()
         
         i = 0
         for line in lines:
             line = line.strip("\n")
             i += 1
+            # 按照文件名顺序进行重命名，防止合并顺序出错
             os.rename(self.temp_dir + str(line), self.temp_dir + str(i).zfill(5) + ".ts")
 
-        system = platform.system()
+        system = platform.system()# 不同的操作系统合并命令不一样
         if system == "Windows":
             cmd = "copy /b *.ts temp.ts"
         elif system == "Linux":
             cmd = "cat *.ts > temp.ts"
         
-        os.chdir(self.temp_dir)
-        os.system(cmd)
+        os.chdir(self.temp_dir)# 进入缓存文件夹
+        os.system(cmd)# 执行合并操作
         os.chdir("..")
-        shutil.move(self.temp_dir + "temp.ts", self.down_dir + self.filename)
-        if 'http' not in self.url:# 如果是本地文件
-            shutil.move(self.url, self.down_dir + self.url)
-        shutil.rmtree(self.temp_dir)
+        shutil.move(self.temp_dir + "temp.ts", self.down_dir + self.filename)# 移动合并文件到下载文件夹
+        shutil.move(self.m3u8, self.down_dir + self.m3u8)# 移动m3u8文件到下载文件夹
+        shutil.rmtree(self.temp_dir)# 清理缓存文件夹
 
 
 if __name__ == '__main__':
     files = sorted(os.listdir("."))
     for file in files:
         if ".m3u8" in file:
-            m3u8 = M3U8(url = file)
+            m3u8 = M3U8(file)
             print("解析开始**********************************************")
             m3u8.analysis()
             print("解析结束**********************************************")

@@ -18,6 +18,10 @@
   - [image_xml.cpp](#image_xmlcpp)
 - [python](#python)
   - [image_random_data.py](#image_random_datapy)
+  - [download_m3u8.py](#download_m3u8py)
+  - [crawler_m3u8.py](#crawler_m3u8py)
+  - [ffmpeg_get_time.py](#ffmpeg_get_timepy)
+  - [upper_lower_case.py](#upper_lower_casepy)
 - [shell](#shell)
   - [clean_update.sh](#clean_updatesh)
   - [configure.sh](#configuresh)
@@ -61,6 +65,18 @@
 # python
 ## image_random_data.py
 - 2019.02.10， 打乱数据集，读取指定路径下所有文件名，按照指定比例生成“train.txt”、“test.txt”，默认不包含“.jpg”后缀
+
+## download_m3u8.py
+- 2020.01.19，读取同目录下所有m3u8文件，使用多线程下载并合并，含失败重启机制，支持linux和Windows，默认文件名为m3u8文件名，缓存路径在“temp_dir”设置（程序开始运行会自动清理），保存路径在“down_dir”设置
+
+## crawler_m3u8.py
+- 2020.01.19，爬取同目录下“http.txt”文件中所有网页中的m3u8文件，并缓存最终ts分片路径，缓存文件名默认为网页标题。该爬虫操作高度自定义，若需使用需要自行修改
+
+## ffmpeg_get_time.py
+- 2020.01.20，调用ffmpeg获取当前文件夹下视频时长至“video.txt”文件，首先获取“.mp4”文件，再获取同名“.ts”文件
+
+## upper_lower_case.py
+- 2020.01.20，重命名大小写
 
 
 # shell

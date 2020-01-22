@@ -1,5 +1,5 @@
 
-<h1 align="center">👉Personal-Tool👈</h1>
+<h1 align="center">👉PersonalTool👈</h1>
 <p align="center">食之无味，弃之可惜</p>
 
 个人工具集合，日常编程写的一些小工具，汇集了bat，cpp，python，shell，保留在github上，免得日后重复造轮子
@@ -16,10 +16,13 @@
   - [image_roi.cpp](#image_roicpp)
   - [image_save.cpp](#image_savecpp)
   - [image_xml.cpp](#image_xmlcpp)
+- [python](#python)
+  - [image_random_data.py](#image_random_datapy)
 - [shell](#shell)
   - [clean_update.sh](#clean_updatesh)
   - [configure.sh](#configuresh)
   - [ts2mp4.sh](#ts2mp4sh)
+
 
 # bat
 ## clear python.bat
@@ -53,6 +56,11 @@
 
 ## image_xml.cpp
 - 2019.01.09， 使用opencv对“Mat”、“xml”进行读写转换，默认“Mat”为cpp路径下的“image.jpg”，默认“xml”为cpp路径下的“MatFile.xml”
+
+
+# python
+## image_random_data.py
+- 2019.02.10， 打乱数据集，读取指定路径下所有文件名，按照指定比例生成“train.txt”、“test.txt”，默认不包含“.jpg”后缀
 
 
 # shell

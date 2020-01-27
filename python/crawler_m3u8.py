@@ -26,7 +26,7 @@ class URL:
             self.title = self.find(r'<title>+.+</title>')[0].replace("<title>", "").replace("</title>", "")
             
         if not os.path.exists(self.down_dir):
-            os.mkdir(self.temp_dir)
+            os.mkdir(self.down_dir)
 
     # url.save("temp.html")
     def save(self, filename):

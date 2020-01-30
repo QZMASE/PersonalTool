@@ -5,9 +5,11 @@ import re
 import threading
 import time
 import requests
-from queue import Queue
+import queue
 import shutil
 import platform
+import sys
+import getopt
 
 class M3U8:
     temp_dir = "./temp/"# 缓存路径
@@ -15,6 +17,7 @@ class M3U8:
     temp_file = temp_dir + 'temp.txt'# 缓存文件路径
     sum_ts = 0# ts文件总数
     num_ts = 0# 当前ts文件下载数量
+    flag_save = False
     headers = {# 包头
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
             AppleWebKit/537.36 (KHTML, like Gecko) \
@@ -23,10 +26,11 @@ class M3U8:
     m3u8 = ""# m3u8文件
     base_url = ""# 链接头
     filename = ""# 文件名
-    ts_queue = Queue(10000)
+    ts_queue = queue.Queue()
     
-    def __init__(self, file, base_url = ""):
-        self.m3u8 = file
+    def __init__(self, m3u8, flag_save, base_url = ""):
+        self.m3u8 = m3u8
+        self.flag_save = flag_save
         self.base_url = base_url
         self.filename = self.m3u8.replace(".m3u8", ".ts")
         
@@ -69,11 +73,19 @@ class M3U8:
                     for chunk in r.iter_content(5242):
                         if chunk:
                             fp.write(chunk)
-                self.num_ts += 1
-                print("\r", name, '下载成功，进度', self.num_ts , "/", self.sum_ts, end="", flush=True)# 刷新显示进度
             except:
-                print('任务文件', name, '下载失败')
+                print(name, "下载失败")
                 self.ts_queue.put(url)
+            else:
+                # 使用ffmpeg检查完整性
+                cmd = "ffmpeg -i " + self.temp_dir + name + " 2>&1"
+                result = os.popen(cmd).read().splitlines()
+                if "Invalid data" in result[-1]:# 文件错误，重新下载
+                    print(name, "文件错误，重新下载")
+                    self.ts_queue.put(url)
+                else:
+                    self.num_ts += 1
+                    print("\r", name, "下载成功，进度", self.num_ts , "/", self.sum_ts, end="", flush=True)# 刷新显示进度
 
     def download(self):
         self.sum_ts = self.ts_queue.qsize()
@@ -118,14 +130,31 @@ class M3U8:
         os.chdir("..")
         shutil.move(self.temp_dir + "temp.ts", self.down_dir + self.filename)# 移动合并文件到下载文件夹
         shutil.move(self.m3u8, self.down_dir + self.m3u8)# 移动m3u8文件到下载文件夹
-        shutil.rmtree(self.temp_dir)# 清理缓存文件夹
+        if flag_save:# 若保存缓存文件夹
+            os.rename(self.temp_dir, self.down_dir + self.m3u8.replace(".m3u8", ""))
+        else:
+            shutil.rmtree(self.temp_dir)# 清理缓存文件夹
+
+
+def analysis_parameter(argv):
+    flag = False
+    try:
+        opts, args = getopt.getopt(argv, "s", ["save"])
+    except getopt.GetoptError:
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-s", "--save"):
+            flag = True
+    return flag
 
 
 if __name__ == '__main__':
     files = sorted(os.listdir("."))
+    flag_save = analysis_parameter(sys.argv[1:])
     for file in files:
         if ".m3u8" in file:
-            m3u8 = M3U8(file)
+            m3u8 = M3U8(file, flag_save)
             print("解析开始**********************************************")
             m3u8.analysis()
             print("解析结束**********************************************")

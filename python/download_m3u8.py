@@ -17,21 +17,21 @@ class M3U8:
     temp_file = temp_dir + 'temp.txt'# 缓存文件路径
     sum_ts = 0# ts文件总数
     num_ts = 0# 当前ts文件下载数量
-    flag_save = False
+    total_threads = 50# 开启线程上限
+    flag_save = False# 是否保存缓存文件，False-不保存，True-保存
     headers = {# 包头
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
             AppleWebKit/537.36 (KHTML, like Gecko) \
             Chrome/78.0.3904.97 Safari/537.36'
     }
     m3u8 = ""# m3u8文件
-    base_url = ""# 链接头
     filename = ""# 文件名
     ts_queue = queue.Queue()
     
-    def __init__(self, m3u8, flag_save, base_url = ""):
+    def __init__(self, m3u8, dict):
         self.m3u8 = m3u8
-        self.flag_save = flag_save
-        self.base_url = base_url
+        self.flag_save = dict["flag_save"]
+        self.total_threads = dict["total_threads"]
         self.filename = self.m3u8.replace(".m3u8", ".ts")
         
         if os.path.exists(self.temp_dir):# 判断文件夹是否存在
@@ -52,11 +52,7 @@ class M3U8:
         file = open(self.temp_file, mode="w")# 打开文件只用于写入，若文件不存在则创建
         for line in lines:
             if '.ts' in line:# 找到文档中含有ts字段的行
-                if 'http' in line:# 检查ts文件链接是否完整，若不完整需拼凑
-                    self.ts_queue.put(line)
-                else:
-                    line = self.base_url + line
-                    self.ts_queue.put(line)
+                self.ts_queue.put(line)
                 name = re.search('([a-zA-Z0-9-_]+.ts)', line).group(1).strip()# 从line中提取文件名
                 file.write("%s\n" % name)# 保存文件顺序，用于后面合并前的重命名
         file.close()
@@ -74,14 +70,14 @@ class M3U8:
                         if chunk:
                             fp.write(chunk)
             except:
-                print(name, "下载失败")
+                # print(name, "下载失败")
                 self.ts_queue.put(url)
             else:
                 # 使用ffmpeg检查完整性
                 cmd = "ffmpeg -i " + self.temp_dir + name + " 2>&1"
                 result = os.popen(cmd).read().splitlines()
                 if "Invalid data" in result[-1]:# 文件错误，重新下载
-                    print(name, "文件错误，重新下载")
+                    # print(name, "文件错误，重新下载")
                     self.ts_queue.put(url)
                 else:
                     self.num_ts += 1
@@ -93,8 +89,8 @@ class M3U8:
             sum_threads = self.sum_ts // 5
         else:
             sum_threads = 1
-        if sum_threads > 50:
-            sum_threads = 50
+        if sum_threads > self.total_threads:
+            sum_threads = self.total_threads
         threads = []
         for i in range(sum_threads):
             t = threading.Thread(target=self.run, name='th-' + str(i))
@@ -130,31 +126,33 @@ class M3U8:
         os.chdir("..")
         shutil.move(self.temp_dir + "temp.ts", self.down_dir + self.filename)# 移动合并文件到下载文件夹
         shutil.move(self.m3u8, self.down_dir + self.m3u8)# 移动m3u8文件到下载文件夹
-        if flag_save:# 若保存缓存文件夹
+        if self.flag_save:# 若保存缓存文件夹
             os.rename(self.temp_dir, self.down_dir + self.m3u8.replace(".m3u8", ""))
         else:
             shutil.rmtree(self.temp_dir)# 清理缓存文件夹
 
 
 def analysis_parameter(argv):
-    flag = False
+    dict = {"flag_save":False, 'total_threads':50}
     try:
-        opts, args = getopt.getopt(argv, "s", ["save"])
+        opts, args = getopt.getopt(argv, "st:", ["save", "total="])
     except getopt.GetoptError:
         sys.exit(2)
 
     for opt, arg in opts:
         if opt in ("-s", "--save"):
-            flag = True
-    return flag
+            dict["flag_save"] = True
+        elif opt in ("-t", "--total"):
+            dict["total_threads"] = int(arg)
+    return dict
 
 
 if __name__ == '__main__':
     files = sorted(os.listdir("."))
-    flag_save = analysis_parameter(sys.argv[1:])
+    dict = analysis_parameter(sys.argv[1:])
     for file in files:
         if ".m3u8" in file:
-            m3u8 = M3U8(file, flag_save)
+            m3u8 = M3U8(file, dict)
             print("解析开始**********************************************")
             m3u8.analysis()
             print("解析结束**********************************************")

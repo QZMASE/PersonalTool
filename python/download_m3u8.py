@@ -41,7 +41,7 @@ class M3U8:
         else:
             os.mkdir(self.temp_dir)
         if not os.path.exists(self.down_dir):
-            os.mkdir(self.temp_dir)
+            os.mkdir(self.down_dir)
         
     def analysis(self):
         file = open(self.m3u8)
